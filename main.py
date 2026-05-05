@@ -25,7 +25,7 @@ def main():
         # for response in page_result:
         #     print(f"{response.name} - {response.display_name}")
 
-        space_name = "spaces/AAQAru_YKks"
+        space_name = "spaces/AAA"
 
         # List all members of the space
         # request = google_chat.ListMembershipsRequest(parent=space_name, page_size=10)
@@ -50,15 +50,8 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
-    creds = auth()
-    people_service = build("people", "v1", credentials=creds)
+    main()
+    # creds = auth()
+    # people_service = build("people", "v1", credentials=creds)
     # profile = people_service.people().get(resourceName="people/115014927189572540867", personFields="names,emailAddresses").execute() 
     # print(profile)
-
-    people = people_service.people().getBatchGet(
-        resourceNames=["people/100392319109279777133", "people/116079007224049788106"], 
-        personFields="names,emailAddresses"
-    ).execute()
-
-    print(people)
