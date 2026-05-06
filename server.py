@@ -3,6 +3,7 @@ from google.apps import chat_v1 as google_chat
 from auth import google_chat_client, google_people_client
 from db import fetch_people
 from helpers import normalize_person
+from datetime import datetime
 
 mcp = FastMCP("GoogleChatMCP", stateless_http=False, json_response=True)
 
@@ -50,7 +51,9 @@ async def get_members(space_name: str):
         if person:
             m["member_display_name"] = person["display_name"]
 
-    return {"members": members,}
+    return {
+        "members": members,
+    }
 
 
 @mcp.tool()
@@ -75,13 +78,21 @@ async def get_messages(space_name: str, filter: str = ""):
     """
     List messages in a chat space.
     Filter should be in the format: 'create_time > "2026-05-05T00:00:00+00:00" AND create_time < "2026-05-06T00:00:00+00:00"'
+    Only use greater than and less than filters on create_time for now to avoid complexity.
 
     Returns:
         A list of messages with their names, create times, text content, and sender information.
         {"messages": [{"name": "spaces/AAA/messages/BBB", "create_time": "2026-05-05T12:34:56Z", "text": "Hello, world!", "sender": {"name": "users/CCC", "display_name": "John Doe"}}, ...]}
     """
     if not filter:
-        filter = 'create_time > "2026-05-05T00:00:00+00:00" AND create_time < "2026-05-06T00:00:00+00:00"'
+        # TODO: default filter from date library
+        now = datetime.now().isoformat() + "Z"
+        first_time_of_day = now.split("T")[0] + "T00:00:00Z"
+        last_time_of_day = now.split("T")[0] + "T23:59:59Z"
+
+        filter = f'create_time > "{first_time_of_day}" AND create_time < "{last_time_of_day}"'
+
+    filter = filter.replace(">=", ">").replace("<=", "<")
 
     request = google_chat.ListMessagesRequest(
         parent=space_name,
@@ -92,23 +103,25 @@ async def get_messages(space_name: str, filter: str = ""):
     messages = google_chat_client.list_messages(request)
     messages_list = []
     for message in messages:
-        messages_list.append({
-            "name": message.name,
-            "create_time": message.create_time,
-            "text": message.text,
-            "sender": {
-                "id": message.sender.name.split("/")[-1],
-                "name": message.sender.name,
-            },
-        })
-    
+        messages_list.append(
+            {
+                "name": message.name,
+                "create_time": message.create_time,
+                "text": message.text,
+                "sender": {
+                    "id": message.sender.name.split("/")[-1],
+                    "name": message.sender.name,
+                },
+            }
+        )
+
     member_ids = list(set([m["sender"]["id"] for m in messages_list]))
     people_db = fetch_people(member_ids)
     for m in messages_list:
         person = people_db.get(m["sender"]["id"])
         if person:
             m["sender"]["display_name"] = person["display_name"]
-            
+
     return {"messages": messages_list}
 
 
