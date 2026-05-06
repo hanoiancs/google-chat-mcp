@@ -1,15 +1,24 @@
 from mcp.server.fastmcp import FastMCP
-from google.apps import chat_v1 as google_chat
-from auth import google_chat_client, google_people_client
+from google.apps import chat_v1 as google_chat 
+from auth import google_chat_client 
 from db import fetch_people
-from helpers import normalize_person
+from helpers import normalize_message, normalize_message, normalize_person
 from datetime import datetime
+
+from models import (
+    MemberModel,
+    MessageModel,
+    MessageQuoteModel,
+    MessageThreadModel,
+    SenderModel,
+    SpaceModel,
+)
 
 mcp = FastMCP("GoogleChatMCP", stateless_http=False, json_response=True)
 
 
 @mcp.tool()
-async def get_spaces():
+async def get_spaces() -> dict[str, list[SpaceModel]]:
     """
     List all chat spaces.
 
@@ -19,14 +28,16 @@ async def get_spaces():
     """
     request = google_chat.ListSpacesRequest(filter='space_type = "SPACE"')
     page_result = google_chat_client.list_spaces(request)
-    spaces = []
+    spaces: list[SpaceModel] = []
     for response in page_result:
-        spaces.append({"name": response.name, "display_name": response.display_name})
+        spaces.append(
+            SpaceModel(name=response.name, display_name=response.display_name)
+        )
     return {"spaces": spaces}
 
 
 @mcp.tool()
-async def get_members(space_name: str):
+async def get_members(space_name: str) -> dict[str, list[MemberModel]]:
     """
     List all members of a chat space.
 
@@ -40,16 +51,16 @@ async def get_members(space_name: str):
         parent=space_name, filter='member.type = "HUMAN"', page_size=25
     )
     memberships = google_chat_client.list_memberships(request)
-    members = []
+    members: list[MemberModel] = []
     for membership in memberships:
         members.append(normalize_person(membership))
 
-    member_ids = list(map(lambda m: m["id"], members))
+    member_ids = list(map(lambda m: m.id, members))
     people_db = fetch_people(member_ids)
     for m in members:
-        person = people_db.get(m["id"])
+        person = people_db.get(m.id)
         if person:
-            m["member_display_name"] = person["display_name"]
+            m.display_name = person["display_name"]
 
     return {
         "members": members,
@@ -57,24 +68,26 @@ async def get_members(space_name: str):
 
 
 @mcp.tool()
-async def get_member(member_name: str):
+async def get_member(member_name: str) -> dict[str, MemberModel]:
     """
     Get details about a specific member of a chat space.
     """
     request = google_chat.GetMembershipRequest(name=member_name)
     member = google_chat_client.get_membership(request)
     member = normalize_person(member)
-    people_db = fetch_people([member["id"]])
+    people_db = fetch_people([member.id])
 
-    person = people_db.get(member["id"])
+    person = people_db.get(member.id)
     if person:
-        member["member_display_name"] = person["display_name"]
+        member.display_name = person["display_name"]
 
     return {"member": member}
 
 
 @mcp.tool()
-async def get_messages(space_name: str, filter: str = ""):
+async def get_messages(
+    space_name: str, filter: str = ""
+) -> dict[str, list[MessageModel]]:
     """
     List messages in a chat space.
     Filter should be in the format: 'create_time > "2026-05-05T00:00:00+00:00" AND create_time < "2026-05-06T00:00:00+00:00"'
@@ -100,27 +113,21 @@ async def get_messages(space_name: str, filter: str = ""):
         order_by="create_time ASC",
         filter=filter,
     )
-    messages = google_chat_client.list_messages(request)
-    messages_list = []
-    for message in messages:
-        messages_list.append(
-            {
-                "name": message.name,
-                "create_time": message.create_time,
-                "text": message.text,
-                "sender": {
-                    "id": message.sender.name.split("/")[-1],
-                    "name": message.sender.name,
-                },
-            }
-        )
 
-    member_ids = list(set([m["sender"]["id"] for m in messages_list]))
+    messages = google_chat_client.list_messages(request)
+    messages_list: list[MessageModel] = []
+
+    for message in messages:
+        model = normalize_message(message)
+        messages_list.append(model)
+
+    member_ids = list(set([m.sender.id for m in messages_list if m.sender]))
     people_db = fetch_people(member_ids)
     for m in messages_list:
-        person = people_db.get(m["sender"]["id"])
-        if person:
-            m["sender"]["display_name"] = person["display_name"]
+        if m.sender:
+            person = people_db.get(m.sender.id)
+            if person:
+                m.sender.display_name = person["display_name"]
 
     return {"messages": messages_list}
 
