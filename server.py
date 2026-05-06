@@ -2,15 +2,12 @@ from mcp.server.fastmcp import FastMCP
 from google.apps import chat_v1 as google_chat 
 from auth import google_chat_client 
 from db import fetch_people
-from helpers import normalize_message, normalize_message, normalize_person
+from helpers import normalize_message, normalize_message, normalize_person, normalize_space
 from datetime import datetime
 
 from models import (
     MemberModel,
     MessageModel,
-    MessageQuoteModel,
-    MessageThreadModel,
-    SenderModel,
     SpaceModel,
 )
 
@@ -30,9 +27,7 @@ async def get_spaces() -> dict[str, list[SpaceModel]]:
     page_result = google_chat_client.list_spaces(request)
     spaces: list[SpaceModel] = []
     for response in page_result:
-        spaces.append(
-            SpaceModel(name=response.name, display_name=response.display_name)
-        )
+        spaces.append(normalize_space(response))
     return {"spaces": spaces}
 
 

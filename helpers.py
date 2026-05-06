@@ -2,7 +2,10 @@ from datetime import datetime
 
 from google.apps.chat_v1.types import Membership
 
-from models import MemberModel, MemberModel, MessageModel, MessageQuoteModel, MessageThreadModel, SenderModel
+from models import MemberModel, MemberModel, MessageModel, MessageQuoteModel, MessageThreadModel, SenderModel, SpaceModel
+
+def normalize_space(space) -> SpaceModel:
+    return SpaceModel(name=space.name, display_name=space.display_name)
 
 
 def normalize_person(membership: Membership) -> MemberModel:
