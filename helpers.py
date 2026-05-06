@@ -23,7 +23,7 @@ def normalize_message(message) -> MessageModel:
     return MessageModel(
         name=message.name,
         text=message.text,
-        create_time=datetime.fromtimestamp(message.create_time.timestamp()),
+        create_time=datetime.fromtimestamp(message.create_time.timestamp()).isoformat(),
         sender=(
             SenderModel(
                 id=message.sender.name.split("/")[-1],
@@ -42,7 +42,7 @@ def normalize_message(message) -> MessageModel:
                 text=message.quoted_message_metadata.quoted_message_snapshot.text,
                 create_time=datetime.fromtimestamp(
                     message.quoted_message_metadata.last_update_time.timestamp()
-                ),
+                ).isoformat(),
                 type=message.quoted_message_metadata.quote_type.name,
             )
             if message.quoted_message_metadata

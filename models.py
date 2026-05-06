@@ -11,7 +11,7 @@ class SenderModel(BaseModel):
 class MessageQuoteModel(BaseModel):
     name: str
     text: str
-    create_time: datetime
+    create_time: str
     type: str
 
 
@@ -22,7 +22,7 @@ class MessageThreadModel(BaseModel):
 class MessageModel(BaseModel):
     name: str
     text: str
-    create_time: datetime
+    create_time: str
     sender: SenderModel | None = None
     thread: MessageThreadModel | None = None
     quote: MessageQuoteModel | None = None
